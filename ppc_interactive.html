@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PPC Teaching Tool - Expanded True Scale</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    /* Aspect ratio 2:1 ensures true visual scale because X-axis (320) is exactly 2x Y-axis (160) */
+    .chart-container {
+      aspect-ratio: 2 / 1;
+      width: 100%;
+      max-width: 1100px; /* Made the figure significantly larger */
+      margin: 0 auto;
+    }
+    .highlight-row {
+      background-color: rgb(239 246 255) !important; /* Blue-50 */
+      border-left: 4px solid rgb(59 130 246); /* Blue-500 */
+      transition: all 0.2s ease;
+    }
+    .table-row-base {
+      border-left: 4px solid transparent;
+      transition: all 0.2s ease;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans p-4 sm:p-6 sm:pb-12">
+  <div class="max-w-7xl mx-auto space-y-6">
+    
+    <header class="bg-slate-900 text-white p-6 rounded-2xl shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div>
+        <h1 class="text-2xl font-bold tracking-tight">Production Possibilities Curve Demonstrator</h1>
+        <p class="text-slate-300 text-sm mt-1"> Technological Change (doubling the production of butter only) </p>
+      </div>
+      
+      <!-- Teacher Reveal Controls -->
+      <div class="bg-slate-800 border border-slate-700 p-3 rounded-lg flex items-center gap-4 shadow-inner">
+        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Teacher Controls:</span>
+        <label class="flex items-center gap-2 cursor-pointer text-sm font-medium hover:text-blue-300 transition">
+          <input type="checkbox" id="toggleInitial" checked class="w-4 h-4 accent-blue-600 cursor-pointer">
+          Show Initial PPC
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm font-medium hover:text-blue-300 transition">
+          <input type="checkbox" id="toggleNew" checked class="w-4 h-4 accent-blue-600 cursor-pointer">
+          Reveal 2x Butter Tech
+        </label>
+      </div>
+    </header>
+
+    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+      <h2 class="text-base font-bold text-slate-800 mb-2 text-center md:text-left">Production Frontier Visualization</h2>
+      <div class="chart-container relative">
+        <canvas id="ppcChart"></canvas>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-6xl mx-auto w-full">
+      
+      <!-- Output Simulator (Sliders) -->
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-5 flex flex-col justify-center">
+        <h2 class="text-base font-bold text-slate-800 border-b pb-3">Output Simulator</h2>
+        
+        <!-- Butter Input (Max strictly set to 300 to match data intercept) -->
+        <div class="space-y-2 p-4 bg-blue-50/50 rounded-xl border border-blue-100">
+          <div class="flex justify-between items-center">
+            <label for="butterNum" class="text-sm font-bold uppercase tracking-wider text-slate-600">Butter Output (X-Axis)</label>
+            <div class="flex items-center gap-1">
+              <input id="butterNum" type="number" min="0" max="300" value="120" 
+                     class="w-20 px-2 py-1 text-right font-bold text-blue-700 bg-white border border-blue-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm shadow-sm">
+            </div>
+          </div>
+          <input id="butterInput" type="range" min="0" max="300" value="120" class="w-full accent-blue-600 cursor-pointer">
+        </div>
+
+        <!-- Guns Input (Max strictly set to 100 to match data intercept) -->
+        <div class="space-y-2 p-4 bg-slate-50 rounded-xl border border-slate-200">
+          <div class="flex justify-between items-center">
+            <label for="gunsNum" class="text-sm font-bold uppercase tracking-wider text-slate-600">Guns Output (Y-Axis)</label>
+            <div class="flex items-center gap-1">
+              <input id="gunsNum" type="number" min="0" max="100" value="50" 
+                     class="w-20 px-2 py-1 text-right font-bold text-slate-700 bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500 text-sm shadow-sm">
+            </div>
+          </div>
+          <input id="gunsInput" type="range" min="0" max="100" value="50" class="w-full accent-slate-600 cursor-pointer">
+        </div>
+      </div>
+
+      <!-- Point Feasibility Evaluation (Status Cards) -->
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-center space-y-4">
+        <h2 class="text-base font-bold text-slate-800 border-b pb-3">Point Feasibility Evaluation</h2>
+        
+        <div id="statusInitial" class="p-4 rounded-xl border transition-all duration-150">
+          <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Initial Economy (Max 150 Butter)</div>
+          <div id="initialTitle" class="text-base font-bold">--</div>
+        </div>
+
+        <div id="statusNew" class="p-4 rounded-xl border transition-all duration-150">
+          <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">New Economy (2x Butter Technology)</div>
+          <div id="newTitle" class="text-base font-bold">--</div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 max-w-6xl mx-auto w-full">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
+        <h2 class="text-base font-bold text-slate-800">Dynamic Marginal Opportunity Cost</h2>
+        <span class="text-xs font-medium text-slate-500 bg-slate-100 px-3 py-1 rounded-full">Row highlights based on current Butter output</span>
+      </div>
+      
+      <div class="overflow-x-auto rounded-lg border border-slate-100">
+        <table class="w-full text-sm text-left text-slate-600">
+          <thead class="text-xs uppercase bg-slate-50 text-slate-700 font-bold border-b-2 border-slate-200">
+            <tr>
+              <th class="py-3.5 px-4">Segment</th>
+              <th class="py-3.5 px-4 text-rose-600">&Delta; Guns Sacrificed</th>
+              <th class="py-3.5 px-4">Initial &Delta; Butter</th>
+              <th class="py-3.5 px-4">Initial Opp. Cost</th>
+              <th class="py-3.5 px-4 bg-blue-50/60 text-blue-900 border-l border-blue-100">New &Delta; Butter</th>
+              <th class="py-3.5 px-4 bg-blue-50/60 text-blue-900">New Opp. Cost</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100" id="oppCostTable">
+            <tr class="table-row-base" data-min="0" data-max="50">
+              <td class="py-3 px-4 font-bold">A &rarr; B</td><td class="px-4 font-semibold text-rose-600">-20</td><td class="px-4">+50</td><td class="px-4 font-medium">0.40 Guns/Butter</td><td class="px-4 bg-blue-50/30 text-emerald-600 border-l border-blue-50">+100</td><td class="px-4 bg-blue-50/30 font-bold text-blue-700">0.20 Guns/Butter</td>
+            </tr>
+            <tr class="table-row-base" data-min="50" data-max="90">
+              <td class="py-3 px-4 font-bold">B &rarr; C</td><td class="px-4 font-semibold text-rose-600">-20</td><td class="px-4">+40</td><td class="px-4 font-medium">0.50 Guns/Butter</td><td class="px-4 bg-blue-50/30 text-emerald-600 border-l border-blue-50">+80</td><td class="px-4 bg-blue-50/30 font-bold text-blue-700">0.25 Guns/Butter</td>
+            </tr>
+            <tr class="table-row-base" data-min="90" data-max="120">
+              <td class="py-3 px-4 font-bold">C &rarr; D</td><td class="px-4 font-semibold text-rose-600">-20</td><td class="px-4">+30</td><td class="px-4 font-medium">0.67 Guns/Butter</td><td class="px-4 bg-blue-50/30 text-emerald-600 border-l border-blue-50">+60</td><td class="px-4 bg-blue-50/30 font-bold text-blue-700">0.33 Guns/Butter</td>
+            </tr>
+            <tr class="table-row-base" data-min="120" data-max="140">
+              <td class="py-3 px-4 font-bold">D &rarr; E</td><td class="px-4 font-semibold text-rose-600">-20</td><td class="px-4">+20</td><td class="px-4 font-medium">1.00 Gun/Butter</td><td class="px-4 bg-blue-50/30 text-emerald-600 border-l border-blue-50">+40</td><td class="px-4 bg-blue-50/30 font-bold text-blue-700">0.50 Guns/Butter</td>
+            </tr>
+            <tr class="table-row-base" data-min="140" data-max="150">
+              <td class="py-3 px-4 font-bold">E &rarr; F</td><td class="px-4 font-semibold text-rose-600">-20</td><td class="px-4">+10</td><td class="px-4 font-medium">2.00 Guns/Butter</td><td class="px-4 bg-blue-50/30 text-emerald-600 border-l border-blue-50">+20</td><td class="px-4 bg-blue-50/30 font-bold text-blue-700">1.00 Gun/Butter</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // Data definition - Exact points requested
+    const initialPoints = [
+      { x: 0, y: 100, label: 'A' }, { x: 50, y: 80, label: 'B' },
+      { x: 90, y: 60, label: 'C' }, { x: 120, y: 40, label: 'D' },
+      { x: 140, y: 20, label: 'E' }, { x: 150, y: 0, label: 'F' }
+    ];
+
+    const newPoints = [
+      { x: 0, y: 100, label: "A'" }, { x: 100, y: 80, label: "B'" },
+      { x: 180, y: 60, label: "C'" }, { x: 240, y: 40, label: "D'" },
+      { x: 280, y: 20, label: "E'" }, { x: 300, y: 0, label: "F'" }
+    ];
+
+    const ctx = document.getElementById('ppcChart').getContext('2d');
+    const chart = new Chart(ctx, {
+      type: 'scatter',
+      data: {
+        datasets: [
+          {
+            label: 'Initial PPC',
+            data: initialPoints,
+            showLine: true,
+            borderColor: '#94a3b8',
+            borderWidth: 2,
+            borderDash: [4, 4],
+            backgroundColor: 'rgba(203, 213, 225, 0.15)',
+            fill: 'origin',
+            pointRadius: 4,
+            pointBackgroundColor: '#64748b'
+          },
+          {
+            label: 'New Tech (2x Butter)',
+            data: newPoints,
+            showLine: true,
+            borderColor: '#2563eb',
+            borderWidth: 3,
+            backgroundColor: 'rgba(37, 99, 235, 0.08)',
+            fill: 'origin',
+            pointRadius: 6,
+            pointBackgroundColor: '#1d4ed8'
+          },
+          {
+            label: 'Test Output',
+            data: [{ x: 120, y: 50 }],
+            pointRadius: 9,
+            pointBackgroundColor: '#f59e0b',
+            pointBorderColor: '#ffffff',
+            pointBorderWidth: 2
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false, 
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => `${ctx.raw.label || 'Test Point'}: (Butter: ${ctx.raw.x}, Guns: ${ctx.raw.y})`
+            }
+          }
+        },
+        scales: {
+          x: { 
+            title: { display: true, text: 'Butter (Units)', font: { weight: 'bold', size: 14 } }, 
+            min: 0, 
+            max: 320, // Reverted to 320 to maintain 2:1 aspect ratio perfectly with 160
+            ticks: { stepSize: 40 }
+          },
+          y: { 
+            title: { display: true, text: 'Guns (Units)', font: { weight: 'bold', size: 14 } }, 
+            min: 0, 
+            max: 160, // Matches 2:1 aspect ratio constraint
+            ticks: { stepSize: 20 }
+          }
+        }
+      }
+    });
+
+    // Interactive Controls
+    const butterInput = document.getElementById('butterInput');
+    const butterNum = document.getElementById('butterNum');
+    const gunsInput = document.getElementById('gunsInput');
+    const gunsNum = document.getElementById('gunsNum');
+    
+    // Teacher Toggles
+    const toggleInitial = document.getElementById('toggleInitial');
+    const toggleNew = document.getElementById('toggleNew');
+
+    toggleInitial.addEventListener('change', (e) => {
+      chart.data.datasets[0].hidden = !e.target.checked;
+      chart.update();
+    });
+
+    toggleNew.addEventListener('change', (e) => {
+      chart.data.datasets[1].hidden = !e.target.checked;
+      chart.update();
+    });
+
+    // Sync input box with slider
+    function syncInputs(source, target) {
+      target.value = source.value;
+      updateApp();
+    }
+
+    butterInput.addEventListener('input', () => syncInputs(butterInput, butterNum));
+    butterNum.addEventListener('input', () => syncInputs(butterNum, butterInput));
+    gunsInput.addEventListener('input', () => syncInputs(gunsInput, gunsNum));
+    gunsNum.addEventListener('input', () => syncInputs(gunsNum, gunsInput));
+
+    // Calculate boundary math
+    function getMaxY(xValue, points) {
+      if (xValue < 0) return 100;
+      if (xValue > points[points.length - 1].x) return -1;
+      for (let i = 0; i < points.length - 1; i++) {
+        let p1 = points[i], p2 = points[i+1];
+        if (xValue >= p1.x && xValue <= p2.x) {
+          let slope = (p2.y - p1.y) / (p2.x - p1.x);
+          return p1.y + slope * (xValue - p1.x);
+        }
+      }
+      return 0;
+    }
+
+    function evalStatus(currentG, maxG, cardId, titleId) {
+      const card = document.getElementById(cardId);
+      const title = document.getElementById(titleId);
+
+      if (maxG < 0) {
+        card.className = "p-4 rounded-xl border bg-rose-50 border-rose-200 text-rose-900";
+        title.textContent = "Unattainable (Exceeds Output Capacity)";
+        return;
+      }
+
+      let diff = currentG - maxG;
+      if (Math.abs(diff) < 1.5) {
+        card.className = "p-4 rounded-xl border bg-emerald-50 border-emerald-300 text-emerald-900 shadow-sm";
+        title.textContent = "Efficient (On the Frontier)";
+      } else if (diff < 0) {
+        card.className = "p-4 rounded-xl border bg-amber-50 border-amber-300 text-amber-900";
+        title.textContent = "Inefficient (Underutilized Resources)";
+      } else {
+        card.className = "p-4 rounded-xl border bg-rose-50 border-rose-200 text-rose-900";
+        title.textContent = "Unattainable (Outside the Curve)";
+      }
+    }
+
+    function updateTableHighlight(bValue) {
+      const rows = document.querySelectorAll('#oppCostTable tr');
+      rows.forEach(row => {
+        const min = parseFloat(row.getAttribute('data-min'));
+        const max = parseFloat(row.getAttribute('data-max'));
+        
+        if (bValue >= min && bValue <= max) {
+          row.classList.add('highlight-row');
+          row.classList.remove('bg-white');
+        } else {
+          row.classList.remove('highlight-row');
+          row.classList.add('bg-white');
+        }
+      });
+    }
+
+    function updateApp() {
+      let b = parseFloat(butterInput.value) || 0;
+      let g = parseFloat(gunsInput.value) || 0;
+
+      // Update Chart Point
+      chart.data.datasets[2].data = [{ x: b, y: g }];
+      chart.update('none');
+
+      // Update Feedback Statuses
+      let maxGInitial = getMaxY(b, initialPoints);
+      evalStatus(g, maxGInitial, 'statusInitial', 'initialTitle');
+
+      let maxGNew = getMaxY(b, newPoints);
+      evalStatus(g, maxGNew, 'statusNew', 'newTitle');
+
+      // Sync Table Row (pinned to initial limits to explain relative segment bounds logically)
+      // We scale the highlight visually down to the 150 bounds if they explore beyond the old tech limit
+      let highlightB = b;
+      if(b > 150) highlightB = 150; 
+      updateTableHighlight(highlightB);
+    }
+
+    // Initialize application state
+    updateApp();
+  </script>
+</body>
+</html>
